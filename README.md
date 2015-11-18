@@ -1,1 +1,3 @@
-#众筹项目开发
+#Gulp deploy tool
+
+use Gulp 4.0 and ES2015
