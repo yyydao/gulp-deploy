@@ -1,0 +1,14 @@
+{
+  "upyun":{
+    "bucket":"heiheihei",
+    "operator":"heiheihei",
+    "password":"heiheihei"
+  },
+  "test_server":{
+    "ip":"127.0.0.1",
+    "domain":"192.168.1.233"
+  },
+  "production_cdn":{
+    "domain":"cdn.example.con"
+  }
+}

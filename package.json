@@ -1,0 +1,31 @@
+{
+  "name": "gulp-deploy-git",
+  "version": "0.1.0",
+  "dependencies": {
+    "finalhandler": "*",
+    "http": "*",
+    "mime-types": "^2.1.7",
+    "serve-static": "*"
+  },
+  "devDependencies": {
+    "browser-sync": "^2.9.11",
+    "glob": "^6.0.1",
+    "gulp": "github:gulpjs/gulp#4.0",
+    "gulp-autoprefixer": "^3.1.0",
+    "gulp-coffee": "*",
+    "gulp-concat": "*",
+    "gulp-cssmin": "^0.1.7",
+    "gulp-debug": "^2.1.2",
+    "gulp-git": "^1.6.0",
+    "gulp-less": "^3.0.5",
+    "gulp-plumber": "*",
+    "gulp-rename": "*",
+    "gulp-rev": "*",
+    "gulp-rsync": "0.0.5",
+    "gulp-sass": "^2.0.4",
+    "gulp-sourcemaps": "*",
+    "gulp-uglify": "*",
+    "gulp-util": "*",
+    "gulp-watch": "^4.3.5"
+  }
+}
