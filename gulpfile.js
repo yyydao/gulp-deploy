@@ -21,10 +21,9 @@ var gulp = require('gulp'),
     debug = require('gulp-debug'),
     glob = require('glob');
 
-var UPYUN = require('upyun');
+var UPYUN = require('./upyun/index.js');
 var config = require('./config/config.json');
 var upyun_config = config.upyun;
-
 
 var del = require('del');        //清理文件夹，可选
 var args = require('minimist')(process.argv.slice(2)); //关键：读取传入参数，其中minimist是一个命令行插件。
@@ -193,8 +192,8 @@ gulp.task('clean', () => {
 gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     //revAll是一个构造方法
     var revAll = new RevAll({
-        //html不加md5
-        dontRenameFile: ['.html'],
+        //html,.min.js,.min.css不加md5
+        dontRenameFile: ['.html', '.min.js', '.min.css'],
         dontUpdateReference: ['.html'],
 
         //rev - revisioned reference path  调整后的路径
@@ -219,7 +218,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     //css，html,js筛选
     var cssFilter = Filter(['**/*.css'], {restore: true});
     var htmlFilter = Filter('**/*.html', {restore: true});
-    var jsFilter = Filter('**/*.js', {restore: true});
+    var jsFilter = Filter(['**/*.js'], {restore: true});
 
     return gulp.src([projPath + '/**/*.{png,jpg,html,css,js}'])
         .pipe(debug())
@@ -230,6 +229,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(cssFilter.restore)
         .pipe(gulp.dest(paths.dist))
         .pipe(jsFilter)
+        .pipe(debug())
         .pipe(uglify())
         .pipe(jsFilter.restore)
         .pipe(gulp.dest(paths.dist))
@@ -242,36 +242,51 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(debug());
 }));
 
-gulp.task('deploy:cdn', gulp.series('build', (cb)=> {
+gulp.task('deploy:cdn', gulp.series((cb)=> {
 
     if (isProduction) {
         "use strict";
-        var upyun = new UPYUN(upyun_config.bucket, upyun_config.operator, upyun_config.password);
+
+        var upyun = new UPYUN(upyun_config.bucket, upyun_config.operator, upyun_config.password, 'v0');
+
+
         var files = glob.sync(paths.dist + '/**/*.{css,jpg,png,gif,js}');
 
         var i = 0;
-        return gulp.src(paths.dist + '/**/*.{css,js,jpg,png,gif}')
-            .pipe(files.forEach((file)=> {    /*@todo: read the dist then upload*/
+        console.log("paths.dir " + paths.dir);
+        console.log("paths.dist " + paths.dist);
+        files.forEach((file)=> {
 
-                upyun.uploadFile(projPath, file, mime.lookup(file), true, (err, result) => {
-                    if (err) console.log(err);
 
-                    if (result.statusCode != 200) {
-                        console.log(result);
-                    }
+            var uploadFile = file.replace(/.:\/(.+\/)*/, ''),
+                fileResolvePath = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/,'');
+            var remotePath =  '/' + projectName+fileResolvePath;
+            console.log("remotePath " + remotePath);
+            console.log('resolve path  ' + fileResolvePath);
+            console.log('uploadFile  ' + uploadFile);
 
-                    i++;
-                    if (i === files.length) {
-                        console.log(i + '个资源文件被上传到又拍云CDN');
-                        cb();
-                    }
-                });
-            }))
-            ;
+              upyun.uploadFile(remotePath,file, mime.lookup(file), true, (err, result) => {
+             if (err) console.log(err);
+
+             if (result.statusCode != 200) {
+             console.log('好像出问题了')
+             console.log(result);
+             }
+
+             i++;
+             if (i === files.length) {
+
+             console.log(i + '个资源文件被上传到又拍云CDN');
+
+
+             cb();
+             }
+             });
+        });
 
 
     } else {
-        var hostname = config.testserver.ip;
+        var hostname = config.test_server.ip;
         return gulp.src(paths.dist + '/**/*.{css,js,jpg,png,gif}')/*@todo:test upload*/
             .pipe(debug());
     }
