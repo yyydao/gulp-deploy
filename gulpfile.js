@@ -242,7 +242,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(debug());
 }));
 
-gulp.task('deploy:cdn', gulp.series((cb)=> {
+gulp.task('deploy:cdn', gulp.series('clean', 'build', (cb)=> {
 
     if (isProduction) {
         "use strict";
@@ -253,35 +253,35 @@ gulp.task('deploy:cdn', gulp.series((cb)=> {
         var files = glob.sync(paths.dist + '/**/*.{css,jpg,png,gif,js}');
 
         var i = 0;
-        console.log("paths.dir " + paths.dir);
-        console.log("paths.dist " + paths.dist);
+
         files.forEach((file)=> {
 
 
             var uploadFile = file.replace(/.:\/(.+\/)*/, ''),
-                fileResolvePath = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/,'');
-            var remotePath =  '/' + projectName+fileResolvePath;
-            console.log("remotePath " + remotePath);
-            console.log('resolve path  ' + fileResolvePath);
-            console.log('uploadFile  ' + uploadFile);
+                fileResolvePath = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/, '');
 
-              upyun.uploadFile(remotePath,file, mime.lookup(file), true, (err, result) => {
-             if (err) console.log(err);
-
-             if (result.statusCode != 200) {
-             console.log('好像出问题了')
-             console.log(result);
-             }
-
-             i++;
-             if (i === files.length) {
-
-             console.log(i + '个资源文件被上传到又拍云CDN');
+            /*something must be like /fxxk/css/ */
+            var remotePath = '/' + projectName + fileResolvePath + "/";
 
 
-             cb();
-             }
-             });
+            upyun.uploadFile(remotePath + uploadFile, file, mime.lookup(file), true, (err, result) => {
+                if (err) console.log(err);
+
+                if (result.statusCode != 200) {
+                    console.log('好像出问题了');
+                    console.log(result);
+                    i++;
+                    cb();
+                    return;
+                }
+
+                i++;
+
+                if (i === files.length) {
+                    console.log(i + '个资源文件被上传到又拍云CDN');
+                    cb();
+                }
+            });
         });
 
 
