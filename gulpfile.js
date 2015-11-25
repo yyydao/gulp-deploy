@@ -21,7 +21,7 @@ var gulp = require('gulp'),
     debug = require('gulp-debug'),
     glob = require('glob');
 
-var UPYUN = require('./upyun/index.js');
+var UPYUN = require('upyun');
 var config = require('./config/config.json');
 var upyun_config = config.upyun;
 
