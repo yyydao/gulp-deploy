@@ -7,7 +7,7 @@ var gulp = require('gulp'),
     watch = require('gulp-watch'),
     plumber = require('gulp-plumber'),
     sourcemaps = require('gulp-sourcemaps'),
-    browserSync = require('browser-sync').create(), //移动端调试神器
+    browserSync = require('browser-sync'), //移动端调试神器
     url = require('url'),
     concat = require('gulp-concat'),
     rename = require('gulp-rename'),
@@ -59,6 +59,7 @@ var paths = {
 };
 
 var projPath = path.resolve(paths.dir, projectName);
+
 gulp.task('clean', () => {
     return del([paths.dist]);
 });
@@ -81,20 +82,6 @@ gulp.task('less', () => {
         .pipe(gulp.dest('./' + projectBase + '/css/'))
         .pipe(browserSync.reload({stream: true}));
 });
-
-gulp.task('watch', () => {
-    return gulp.watch(['less/**/*.less', 'css/**/*.css', 'js/**/*.js'], {cwd: projectBase}, () => {
-        gulp.run('less');
-        reload();
-    });
-});
-
-gulp.task('watch-less', () => {
-    return gulp.watch(['less/**/*.less'], {cwd: projectBase}, () => {
-        gulp.run('less');
-    });
-});
-
 
 //SASS
 
@@ -156,38 +143,41 @@ gulp.task('compressjs', () => {
 gulp.task('watch-debug', () => {
     gulp.series('sass-dev', 'compressjs')
     gulp.watch(['scss/**/*.scss', 'scss/**/*.sass', 'js/**/*.js'], {cwd: projectBase}, () => {
-        gulp.run('compressjs');
-        gulp.run('sass-dev');
+        gulp.series('sass-dev', 'compressjs')
     });
 });
 
 //上线后debug
 gulp.task('watch-debug-min', () => {
-    gulp.run('sass-min');
-    gulp.run('compressjs');
+    gulp.parallel('sass-min', 'compressjs');
     gulp.watch(['scss/**/*.scss', 'scss/**/*.sass', 'js/**/*.js'], {cwd: projectBase}, () => {
-        gulp.run('compressjs');
-        gulp.run('sass-min');
+        gulp.parallel('sass-min', 'compressjs');
     });
-});
-
-//sass开发用watch,默认端口3000
-gulp.task('watch-all', () => {
-    gulp.series('sass-dev', browserSync({
-            server: {
-                baseDir: projectBase
-            }
-        }),
-        gulp.watch(['scss/**/*.scss', 'scss/**/*.sass', '*.html', 'html/**/*.html'], {cwd: projectBase}, () => {
-            gulp.run('sass-dev');
-            reload();
-        }));
-
 });
 
 gulp.task('clean', () => {
     return del([paths.dist]);
 });
+
+function browserSyncFn() {
+    browserSync({
+        server: {
+            baseDir: projectBase
+        }
+    })
+}
+
+
+//sass开发用watch,默认端口3000
+gulp.task('watch-all', gulp.series('sass-dev', ()=> {
+    browserSyncFn();
+    gulp.watch(['scss/**/*.scss', 'scss/**/*.sass', 'js/**/*.js','*.html'],{cwd:projectBase},
+        gulp.series('sass-dev', ()=> {
+           reload();
+        })
+    );
+    }
+));
 
 gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     //revAll是一个构造方法
@@ -242,7 +232,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(debug());
 }));
 
-gulp.task('deploy:cdn', gulp.series('clean', 'build', (cb)=> {
+gulp.task('deploy:cdn', gulp.series('clean', 'build', function upload(cb) {
 
     if (isProduction) {
         "use strict";
@@ -250,7 +240,7 @@ gulp.task('deploy:cdn', gulp.series('clean', 'build', (cb)=> {
         var upyun = new UPYUN(upyun_config.bucket, upyun_config.operator, upyun_config.password, 'v0');
 
 
-        var files = glob.sync(paths.dist + '/**/*.{css,jpg,png,gif,js}');
+        var files = glob.sync(paths.dist + '/**/*.{css,jpg,png,gif,js,html}')/*@todo:考虑到有css、js、html、img以外的文件，应修改成不上传某些东西*/;
 
         var i = 0;
 
@@ -270,9 +260,6 @@ gulp.task('deploy:cdn', gulp.series('clean', 'build', (cb)=> {
                 if (result.statusCode != 200) {
                     console.log('好像出问题了');
                     console.log(result);
-                    i++;
-                    cb();
-                    return;
                 }
 
                 i++;
@@ -294,5 +281,5 @@ gulp.task('deploy:cdn', gulp.series('clean', 'build', (cb)=> {
 
 gulp.task('sass-publish', gulp.parallel('sass-prod', 'sass-min'));
 
-gulp.task('default', gulp.series('sass-dev', 'watch', 'browser-sync'));
+gulp.task('default', gulp.series('sass-dev', 'watch-all', 'browser-sync'));
  
