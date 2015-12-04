@@ -69,7 +69,7 @@ var paths = {
 
 };
 
-console.log(args)
+console.log(args);
 
 var projPath = path.resolve(paths.dir, projectName);
 
@@ -197,7 +197,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     var revAll = new RevAll({
         //html,.min.js,.min.css不加md5
         dontRenameFile: ['.html', '.min.js', '.min.css','.eot','.svg','.ttf','.woff','.woff2',/angular\/.*/g],
-        dontUpdateReference: ['.html'],
+        dontUpdateReference: ['.html',/angular\/.*/g],
         /*debug:true,*/
         transformPath(rev, source, file) {
             //rev - revisioned reference path  调整后的路径
@@ -235,7 +235,9 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(jsFilter.restore)
         .pipe(gulp.dest(paths.dist))
         .pipe(angularFilter)
+        .pipe(debug())
         .pipe(ngAnnotate())
+        .pipe(debug())
         .pipe(uglify())
         .pipe(angularFilter.restore)
         .pipe(gulp.dest(paths.dist))
@@ -243,7 +245,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(gulp.dest(paths.dist))
 }));
 
-gulp.task('jsp-publish',gulp.series('build',(cb)=>{
+gulp.task('jsp-publish',gulp.series('build',()=>{
     var manifest = gulp.src(paths.dist+"/rev-manifest.json");
     return gulp.src([targetPath+'/**/*.jsp'])
         .pipe(revRelace({replaceInExtensions: ['.jsp'], manifest: manifest}))
