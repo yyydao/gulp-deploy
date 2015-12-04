@@ -19,11 +19,14 @@ var gulp = require('gulp'),
     Filter = require('gulp-filter'),
     rsync = require('gulp-rsync'),
     debug = require('gulp-debug'),
-    glob = require('glob');
+    glob = require('glob'),
+    revRelace = require('gulp-rev-replace'),
+    ngAnnotate = require('gulp-ng-annotate');
 
 var UPYUN = require('upyun');
 var config = require('./config/config.json');
 var upyun_config = config.upyun;
+
 
 var del = require('del');        //清理文件夹，可选
 var args = require('minimist')(process.argv.slice(2)); //关键：读取传入参数，其中minimist是一个命令行插件。
@@ -40,6 +43,12 @@ if (!args.n) {
     process.exit(0);
 }
 var projectName = args.n.toString();
+var targetPath;
+
+if(args.t) {
+
+    targetPath =args.t.toString()
+}
 
 // 2. 是否进行构建
 //（当启动服务器的时候是在项目工程启动还是构建目录启动）
@@ -55,8 +64,12 @@ var cdn = isProduction
 //dir代表当前gulpfile.js所在目录，一般就是根目录。resolve相当于不断的调用系统的cd命令,将path一路拼接起来
 var paths = {
     dir: path.resolve(__dirname),
-    dist: path.resolve(__dirname, 'dist', projectName)
+    dist: path.resolve(__dirname, 'dist', projectName),
+    jsp: path.resolve(__dirname, 'dist', projectName,'jsp')
+
 };
+
+console.log(args)
 
 var projPath = path.resolve(paths.dir, projectName);
 
@@ -183,14 +196,13 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     //revAll是一个构造方法
     var revAll = new RevAll({
         //html,.min.js,.min.css不加md5
-        dontRenameFile: ['.html', '.min.js', '.min.css'],
+        dontRenameFile: ['.html', '.min.js', '.min.css','.eot','.svg','.ttf','.woff','.woff2',/angular\/.*/g],
         dontUpdateReference: ['.html'],
-
-        //rev - revisioned reference path  调整后的路径
-        //source - original reference path  源路径(相对于html的路径)
-        //path - path to the file         文件路径(绝对路径)
-
+        /*debug:true,*/
         transformPath(rev, source, file) {
+            //rev - revisioned reference path  调整后的路径
+            //source - original reference path  源路径(相对于html的路径)
+            //path - path to the file         文件路径(绝对路径)
 
             //如果是cdn绝对地址，不做转换
             if (file.path.indexOf('//') == 0) return;
@@ -208,13 +220,12 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     //css，html,js筛选
     var cssFilter = Filter(['**/*.css'], {restore: true});
     var htmlFilter = Filter('**/*.html', {restore: true});
-    var jsFilter = Filter(['**/*.js'], {restore: true});
+    var jsFilter = Filter(['**/*.js','!js/angular/**'], {restore: true});
+    var angularFilter = Filter(['**/*.js','js/angular/**'],{restore: true});
 
-    return gulp.src([projPath + '/**/*.{png,jpg,html,css,js}'])
-        .pipe(debug())
+    return gulp.src([projPath + '/**/*.{png,jpg,gif,html,css,js,eot,svg,ttf,woff,woff2}'])
         .pipe(revAll.revision())
         .pipe(cssFilter)
-        .pipe(debug())
         .pipe(cssmin())
         .pipe(cssFilter.restore)
         .pipe(gulp.dest(paths.dist))
@@ -223,13 +234,20 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
         .pipe(uglify())
         .pipe(jsFilter.restore)
         .pipe(gulp.dest(paths.dist))
-        .pipe(htmlFilter)
-        //conditionals:true，不移除ie浏览器相关的注释代码
+        .pipe(angularFilter)
+        .pipe(ngAnnotate())
+        .pipe(uglify())
+        .pipe(angularFilter.restore)
         .pipe(gulp.dest(paths.dist))
-        //生成manifest文件
         .pipe(revAll.manifestFile())
         .pipe(gulp.dest(paths.dist))
-        .pipe(debug());
+}));
+
+gulp.task('jsp-publish',gulp.series('build',(cb)=>{
+    var manifest = gulp.src(paths.dist+"/rev-manifest.json");
+    return gulp.src([targetPath+'/**/*.jsp'])
+        .pipe(revRelace({replaceInExtensions: ['.jsp'], manifest: manifest}))
+        .pipe(gulp.dest(paths.jsp));
 }));
 
 gulp.task('deploy:cdn', gulp.series('clean', 'build', function upload(cb) {
