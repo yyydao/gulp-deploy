@@ -2,6 +2,7 @@
   "name": "gulp-deploy-git",
   "version": "0.1.0",
   "dependencies": {
+    "cors": "^2.7.1",
     "finalhandler": "*",
     "http": "*",
     "mime-types": "^2.1.7",
