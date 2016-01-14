@@ -122,7 +122,6 @@ gulp.task('sass-min', ()=> {
     .pipe(gulp.dest(projectBase + '/css/'));
 });
 
-
 // 压缩js  @todo:refactor with filter module
 gulp.task('compressjs', () => {
   const compressjsConfig = {
@@ -143,7 +142,6 @@ gulp.task('compressjs', () => {
       console.log('JS压缩完成，输出到 \n' + projectBase + '/js');
     });
 });
-
 
 // 上线后debug   @todo:refactor with filter module
 gulp.task('watch-debug', () => {
@@ -228,6 +226,33 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     .pipe(gulp.dest(paths.dist));
 }));
 
+gulp.task('build-norev', gulp.series('clean', 'sass-prod', () => {
+
+  // css，html,js筛选
+  const cssFilter = Filter(['**/*.css'], { restore: true });
+  const htmlFilter = Filter('**/*.html', { restore: true });
+  const jsFilter = Filter(['**/*.js', '!js/angular/**'], { restore: true });
+  const angularFilter = Filter(['**/*.js', 'js/angular/**'], { restore: true });
+
+  return gulp.src([projPath + '/**/*.{png,jpg,gif,html,css,js,eot,svg,ttf,woff,woff2}'])
+    .pipe(cssFilter)
+    .pipe(cssmin())
+    .pipe(cssFilter.restore)
+    .pipe(gulp.dest(paths.dist))
+    .pipe(jsFilter)
+    .pipe(debug())
+    .pipe(uglify())
+    .pipe(jsFilter.restore)
+    .pipe(gulp.dest(paths.dist))
+    .pipe(angularFilter)
+    .pipe(debug())
+    .pipe(ngAnnotate())
+    .pipe(debug())
+    .pipe(uglify())
+    .pipe(angularFilter.restore)
+    .pipe(gulp.dest(paths.dist))
+}));
+
 gulp.task('jsp-publish', gulp.series('build', ()=> {
   const manifest = gulp.src(paths.dist + '/rev-manifest.json');
   return gulp.src([targetPath + '/**/*.jsp'])
@@ -238,19 +263,16 @@ gulp.task('jsp-publish', gulp.series('build', ()=> {
 gulp.task('deploy:cdn', gulp.series('clean', 'build', function upload(cb) {
     const upyun = new UPYUN(upyunConfig.bucket, upyunConfig.operator, upyunConfig.password, 'v0');
     const localFile = glob.sync(paths.dist + '/**/*.{png,jpg,gif,html,css,js,eot,svg,ttf,woff,woff2}'); // @todo:考虑到有css、js、html、img以外的文件，应修改成不上传某些东西*/;
-    let i = 0;
-    for(var file of localFile){
-      console.log(file)
-      let uploadFile = file.replace(/.:\/(.+\/)*!/, '');
-      let fileResolvePath = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/, '');
-      let remotePath = '/' + projectName + fileResolvePath + '/';
-    }
-   /* localFile.forEach((file)=> {
-      let uploadFile = file.replace(/.:\/(.+\/)*!/, '');
-      let fileResolvePath = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/, '');
-      let remotePath = '/' + projectName + fileResolvePath + '/';
 
-      upyun.uploadFile(remotePath + uploadFile, file, mime.lookup(file), true, (err, result) => {
+    let i = 0;
+
+    for(var file of localFile){
+
+      let uploadFile = file.replace(/.:\/(.+\/)*!/, '');
+      let realFileName = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/, '');
+      let remotePath = '/' + projectName + realFileName;
+
+      upyun.uploadFile(remotePath, file, mime.lookup(file), true, (err, result) => {
         if (err) console.log(err);
         if (result.statusCode !== 200) {
           console.log('好像出问题了');
@@ -262,8 +284,35 @@ gulp.task('deploy:cdn', gulp.series('clean', 'build', function upload(cb) {
           cb();
         }
       });
-    });*/
+    }
 
+  })
+);
+
+gulp.task('deploy:cdn-norev', gulp.series('clean', 'build-norev', function upload(cb) {
+    const upyun = new UPYUN(upyunConfig.bucket, upyunConfig.operator, upyunConfig.password, 'v0');
+    const localFile = glob.sync(paths.dist + '/**/*.{png,jpg,gif,html,css,js,eot,svg,ttf,woff,woff2}'); // @todo:考虑到有css、js、html、img以外的文件，应修改成不上传某些东西*/;
+
+    let i = 0;
+
+    for(var file of localFile){
+      let uploadFile = file.replace(/.:\/(.+\/)*!/, '');
+      let realFileName = file.replace(glob.sync(paths.dist), '').replace(uploadFile, '').replace(/\/$/, '');
+      let remotePath = '/' + projectName + realFileName;
+
+      upyun.uploadFile(remotePath, file, mime.lookup(file), true, (err, result) => {
+        if (err) console.log(err);
+        if (result.statusCode !== 200) {
+          console.log('好像出问题了');
+          console.log(result);
+        }
+        i++;
+        if (i === localFile.length) {
+          console.log(i + '个资源文件被上传到又拍云CDN');
+          cb();
+        }
+      });
+    }
   })
 );
 
