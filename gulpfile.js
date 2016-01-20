@@ -174,7 +174,7 @@ gulp.task('watch-all', gulp.series('sass-dev', ()=> {
   })
 );
 
-gulp.task('build', gulp.series('clean', 'sass-prod', () => {
+gulp.task('build', gulp.series('clean', () => {
   const revAll = new RevAll({
     // html,.min.js,.min.css不加md5
     dontRenameFile: ['.html', '.min.js', '.min.css', /angular\/.*/g],
@@ -226,7 +226,7 @@ gulp.task('build', gulp.series('clean', 'sass-prod', () => {
     .pipe(gulp.dest(paths.dist));
 }));
 
-gulp.task('build-norev', gulp.series('clean', 'sass-prod', () => {
+gulp.task('build-norev', gulp.series('clean',  () => {
 
   // css，html,js筛选
   const cssFilter = Filter(['**/*.css'], { restore: true });
