@@ -167,7 +167,7 @@ gulp.task('clean', () => {
 // sass开发用watch,默认端口3000
 gulp.task('watch-all', gulp.series('sass-dev', ()=> {
     browserSyncFn();
-    gulp.watch(['scss/**/*.scss', 'scss/**/*.sass', 'js/**/*.js', '*.html','**/**/*.html'],
+    gulp.watch(['scss/**/*.scss', 'scss/**/*.sass', 'js/**/*.js','js/**/*.js', '*.html','**/**/*.html','**/*','!.idea/*','!node_modules/*','!css/**/*.css','!css/**/*.scss'],
       { cwd: projectBase },
       gulp.series('sass-dev', ()=>reload())
     );
